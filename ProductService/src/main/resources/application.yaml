@@ -1,0 +1,52 @@
+spring:
+  application:
+    name: product-service
+
+  data:
+    mongodb:
+      uri: mongodb://localhost:27017/ProductDB
+
+  redis:
+    host: localhost
+    port: 6379
+    jedis:
+      pool:
+        max-active: 10
+        max-wait: -1s
+        max-idle: 5
+        min-idle: 1
+
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: http://localhost:8080/realms/ecommerce
+
+keycloak:
+  client-id: ecommerce-app
+
+inventory:
+  service:
+    url: http://inventory-service/inventoryService
+
+interservice:
+  api:
+    key: my-interservice-key
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka
+  instance:
+    instance-id: product-service
+    hostname: localhost
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,metrics
+
+server:
+  port: 8096
+

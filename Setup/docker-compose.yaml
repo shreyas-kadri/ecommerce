@@ -1,0 +1,127 @@
+version: '3.8'
+
+services:
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.0.1
+    container_name: zookeeper
+    ports:
+      - "2181:2181"
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    networks:
+      - backend_network
+
+  broker:
+    image: confluentinc/cp-kafka:7.0.1
+    container_name: broker
+    ports:
+      - "9092:9092"
+      - "29092:29092"
+    depends_on:
+      - zookeeper
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_INTERNAL:PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092,PLAINTEXT_INTERNAL://broker:29092
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,PLAINTEXT_INTERNAL://0.0.0.0:29092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+    networks:
+      - backend_network
+
+  postgres:
+    image: postgres
+    container_name: postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: keycloakDB
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+     - pg_data:/var/lib/postgresql/data
+     - ./init-multiple-dbs.sh:/docker-entrypoint-initdb.d/init-multiple-dbs.sh
+    networks:
+      - backend_network
+
+  pgadmin4:
+    image: dpage/pgadmin4
+    container_name: pgadmin4
+    ports:
+      - "5050:80"
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@admin.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+    depends_on:
+      - postgres
+    networks:
+      - backend_network
+
+  redis-stack:
+    image: redis/redis-stack
+    container_name: redis-stack
+    ports:
+      - "6379:6379"
+      - "8001:8001"
+    networks:
+      - backend_network
+
+  mongo:
+    image: mongodb/mongodb-community-server:latest
+    container_name: mongodb
+    ports:
+      - "27017:27017"
+    environment:
+      MONGODB_INITDB_ROOT_USERNAME: admin
+      MONGODB_INITDB_ROOT_PASSWORD: admin
+    networks:
+      - backend_network
+
+  mongo-express:
+    image: mongo-express
+    container_name: mongo-express
+    ports:
+      - "8084:8081"
+    environment:
+      ME_CONFIG_MONGODB_SERVER: mongodb
+      ME_CONFIG_MONGODB_ADMINUSERNAME: admin
+      ME_CONFIG_MONGODB_ADMINPASSWORD: admin
+      ME_CONFIG_BASICAUTH: "false"
+    depends_on:
+      - mongo
+    networks:
+      - backend_network
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.1.4
+    container_name: keycloak
+    command: start-dev --import-realm
+    ports:
+      - "8080:8080"
+      - "9000:9000"
+    environment:
+      KC_DB: postgres
+      KC_DB_URL_HOST: postgres
+      KC_DB_URL_PORT: 5432
+      KC_DB_URL_DATABASE: keycloakDB
+      KC_DB_USERNAME: postgres
+      KC_DB_PASSWORD: postgres
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+    volumes:
+      - ./realm-ecommerce.json:/opt/keycloak/data/import/realm-ecommerce.json
+    depends_on:
+      - postgres
+    networks:
+      - backend_network
+
+networks:
+  backend_network:
+    driver: bridge
+
+volumes:
+  pg_data:

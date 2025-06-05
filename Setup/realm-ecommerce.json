@@ -1,0 +1,44 @@
+{
+  "realm": "ecommerce",
+  "enabled": true,
+  "clients": [
+    {
+      "clientId": "ecommerce-app",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "secret": "6DWka4kF7cbwFjHyBwWxlZJUi0uu3lfS",
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": true,
+      "redirectUris": ["*"],
+      "webOrigins": ["*"],
+      "defaultRoles": ["ADMIN", "CUSTOMER", "SELLER"],
+      "clientAuthenticatorType": "client-secret"
+    }
+  ],
+  "roles": {
+    "client": {
+      "ecommerce-app": [
+        { "name": "ADMIN" },
+        { "name": "CUSTOMER" },
+        { "name": "SELLER" }
+      ]
+    }
+  },
+  "users": [
+    {
+      "username": "admin",
+      "enabled": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "admin",
+          "temporary": false
+        }
+      ],
+      "clientRoles": {
+        "ecommerce-app": ["ADMIN"]
+      }
+    }
+  ]
+}

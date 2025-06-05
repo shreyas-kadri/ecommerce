@@ -1,0 +1,154 @@
+version : "3.8"
+
+services:
+
+  eureka-server:
+    build:
+      context: ./EurekaServer
+    container_name: eureka-server
+    ports:
+      - "8761:8761"
+    networks:
+      - setup_backend_network
+
+  api-gateway:
+    build:
+      context: ./APIGateway
+    container_name: api-gateway
+    environment:
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka
+      EUREKA_INSTANCE_HOSTNAME: api-gateway
+    ports:
+      - "8888:8888"
+    depends_on:
+      - eureka-server
+    networks:
+      - setup_backend_network
+
+  user-service:
+    build:
+      context: ./UserService
+    container_name: user-service
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/userDB
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: postgres
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka
+      KEYCLOAK_AUTH-SERVER-URL: http://keycloak:8080
+      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI: http://keycloak:8080/realms/ecommerce
+      EUREKA_INSTANCE_HOSTNAME: user-service
+    depends_on:
+      - eureka-server
+    ports:
+      - "8090:8090"
+    networks:
+      - setup_backend_network
+
+  inventory-service:
+    build:
+      context: ./InventoryService
+    container_name: inventory-service
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/inventoryDB
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: postgres
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka
+      KEYCLOAK_AUTH-SERVER-URL: http://keycloak:8080
+      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI: http://keycloak:8080/realms/ecommerce
+      EUREKA_INSTANCE_HOSTNAME: inventory-service
+    depends_on:
+      - eureka-server
+      - user-service
+    ports:
+      - "8092:8092"
+    networks:
+      - setup_backend_network
+
+  cart-service:
+    build:
+      context: ./CartService
+    container_name: cart-service
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/cartDB
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: postgres
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka
+      KEYCLOAK_AUTH-SERVER-URL: http://keycloak:8080
+      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI: http://keycloak:8080/realms/ecommerce
+      EUREKA_INSTANCE_HOSTNAME: cart-service
+    depends_on:
+      - eureka-server
+      - user-service
+      - inventory-service
+
+    ports:
+      - "8094:8094"
+    networks:
+      - setup_backend_network
+
+  product-service:
+    build:
+      context: ./ProductService
+    container_name: product-service
+    environment:
+      SPRING_DATA_MONGODB_URI: mongodb://mongodb:27017/ProductDB
+      SPRING_DATA_REDIS_HOST: redis-stack
+      SPRING_DATA_REDIS_PORT: 6379
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka
+      KEYCLOAK_AUTH-SERVER-URL: http://keycloak:8080
+      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI: http://keycloak:8080/realms/ecommerce
+      EUREKA_INSTANCE_HOSTNAME: product-service
+    depends_on:
+      - eureka-server
+      - user-service
+      - inventory-service
+
+    ports:
+      - "8096:8096"
+    networks:
+      - setup_backend_network
+
+  order-service:
+    build:
+      context: ./OrderService
+    container_name: order-service
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/orderDB
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: postgres
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka
+      KEYCLOAK_AUTH-SERVER-URL: http://keycloak:8080
+      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI: http://keycloak:8080/realms/ecommerce
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: broker:29092
+      EUREKA_INSTANCE_HOSTNAME: order-service
+    depends_on:
+      - eureka-server
+      - user-service
+      - inventory-service
+      - cart-service
+    ports:
+      - "8098:8098"
+    networks:
+      - setup_backend_network
+
+  notification-service:
+    build:
+      context: ./NotificationService
+    container_name: notification-service
+    environment:
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: broker:29092
+      EUREKA_INSTANCE_HOSTNAME: notification-service
+    depends_on:
+      - eureka-server
+      - order-service
+    ports:
+      - "8100:8100"
+    networks:
+      - setup_backend_network
+
+networks:
+  setup_backend_network:
+    external: true
+
+

@@ -1,0 +1,42 @@
+spring:
+  kafka:
+    bootstrap-servers: localhost:9092
+    template:
+      default-topic: notification-group
+    consumer:
+      group-id: consumer-group
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.type.mapping: event:com.example.NotificationService.Event.OrderPlacedEvent
+        spring.json.trusted.packages: '*'
+
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: 20cs156.shreyas@sjec.ac.in
+    password: fjwz wwkz hcbl kdla
+    protocol: smtp
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+
+twilio:
+  account:
+    sid: ACc4d8c53261905a2b471fc3207734e258
+  auth:
+    token: 0807b2ebccf822b802acef61c1b82313
+  phone:
+    number: "+12293543355"
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,metrics
+
+server:
+  port: 8100

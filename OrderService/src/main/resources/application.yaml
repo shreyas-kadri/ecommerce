@@ -1,0 +1,71 @@
+spring:
+  application:
+    name: order-service
+
+  datasource:
+    url: jdbc:postgresql://localhost:5432/orderDB
+    username: postgres
+    password: postgres
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: http://localhost:8080/realms/ecommerce
+
+  kafka:
+    bootstrap-servers: localhost:9092
+    template:
+      default-topic: notification-group
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      properties:
+        spring.json.type.mapping: event:com.example.OrderService.Event.OrderPlacedEvent
+
+keycloak:
+  client-id: ecommerce-app
+
+cart:
+  service:
+    url: http://cart-service/cart
+
+inventory:
+  service:
+    url : http://inventory-service/inventoryService
+
+user:
+  service:
+      url: http://user-service/user
+
+interservice:
+  api:
+    key: my-interservice-key
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka
+  instance:
+    instance-id: order-service
+    hostname: localhost
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,metrics
+
+server:
+  port: 8098
+
