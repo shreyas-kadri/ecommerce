@@ -39,12 +39,12 @@ services:
     ports:
       - "5432:5432"
     environment:
-      POSTGRES_DB: keycloakDB
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
-     - pg_data:/var/lib/postgresql/data
-     - ./init-multiple-dbs.sh:/docker-entrypoint-initdb.d/init-multiple-dbs.sh
+      - pg_data:/var/lib/postgresql/data
+      - ./init-multiple-dbs.sh:/docker-entrypoint-initdb.d/init-multiple-dbs.sh
     networks:
       - backend_network
 
@@ -54,8 +54,8 @@ services:
     ports:
       - "5050:80"
     environment:
-      PGADMIN_DEFAULT_EMAIL: admin@admin.com
-      PGADMIN_DEFAULT_PASSWORD: admin
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD}
     depends_on:
       - postgres
     networks:
@@ -76,8 +76,10 @@ services:
     ports:
       - "27017:27017"
     environment:
-      MONGODB_INITDB_ROOT_USERNAME: admin
-      MONGODB_INITDB_ROOT_PASSWORD: admin
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD}
+    volumes:
+      - mongo_data:/data/db
     networks:
       - backend_network
 
@@ -87,10 +89,10 @@ services:
     ports:
       - "8084:8081"
     environment:
-      ME_CONFIG_MONGODB_SERVER: mongodb
-      ME_CONFIG_MONGODB_ADMINUSERNAME: admin
-      ME_CONFIG_MONGODB_ADMINPASSWORD: admin
-      ME_CONFIG_BASICAUTH: "false"
+      ME_CONFIG_MONGODB_SERVER: ${ME_CONFIG_MONGODB_SERVER}
+      ME_CONFIG_MONGODB_ADMINUSERNAME: ${ME_CONFIG_MONGODB_ADMINUSERNAME}
+      ME_CONFIG_MONGODB_ADMINPASSWORD: ${ME_CONFIG_MONGODB_ADMINPASSWORD}
+      ME_CONFIG_BASICAUTH: ${ME_CONFIG_BASICAUTH}
     depends_on:
       - mongo
     networks:
@@ -104,14 +106,14 @@ services:
       - "8080:8080"
       - "9000:9000"
     environment:
-      KC_DB: postgres
-      KC_DB_URL_HOST: postgres
-      KC_DB_URL_PORT: 5432
-      KC_DB_URL_DATABASE: keycloakDB
-      KC_DB_USERNAME: postgres
-      KC_DB_PASSWORD: postgres
-      KC_BOOTSTRAP_ADMIN_USERNAME: admin
-      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+      KC_DB: ${KC_DB}
+      KC_DB_URL_HOST: ${KC_DB_URL_HOST}
+      KC_DB_URL_PORT: ${KC_DB_URL_PORT}
+      KC_DB_URL_DATABASE: ${KC_DB_URL_DATABASE}
+      KC_DB_USERNAME: ${KC_DB_USERNAME}
+      KC_DB_PASSWORD: ${KC_DB_PASSWORD}
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${KC_BOOTSTRAP_ADMIN_USERNAME}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KC_BOOTSTRAP_ADMIN_PASSWORD}
     volumes:
       - ./realm-ecommerce.json:/opt/keycloak/data/import/realm-ecommerce.json
     depends_on:
@@ -125,3 +127,4 @@ networks:
 
 volumes:
   pg_data:
+  mongo_data:

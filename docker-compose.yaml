@@ -91,7 +91,7 @@ services:
       context: ./ProductService
     container_name: product-service
     environment:
-      SPRING_DATA_MONGODB_URI: mongodb://mongodb:27017/ProductDB
+      SPRING_DATA_MONGODB_URI: mongodb://admin:admin@mongodb:27017/ProductDB?authSource=admin
       SPRING_DATA_REDIS_HOST: redis-stack
       SPRING_DATA_REDIS_PORT: 6379
       EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka
