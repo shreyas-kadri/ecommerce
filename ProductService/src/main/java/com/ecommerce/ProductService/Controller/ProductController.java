@@ -36,7 +36,7 @@ public class ProductController {
     }
 
     @PreAuthorize("hasRole('SELLER')")
-    @PostMapping("/updateProduct")
+    @PutMapping("/updateProduct")
     public ResponseEntity<String> updateProduct(@RequestHeader("Authorization") String authorizationHeader,@RequestBody @Valid ProductDTO productDTO)
     {
         String accessToken = authorizationHeader.substring(7);
