@@ -16,7 +16,7 @@ services:
       context: ./APIGateway
     container_name: api-gateway
     environment:
-      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: ${EUREKA_URL}
       EUREKA_INSTANCE_HOSTNAME: api-gateway
     ports:
       - "8888:8888"
@@ -31,11 +31,11 @@ services:
     container_name: user-service
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/userDB
-      SPRING_DATASOURCE_USERNAME: postgres
-      SPRING_DATASOURCE_PASSWORD: postgres
-      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka
-      KEYCLOAK_AUTH-SERVER-URL: http://keycloak:8080
-      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI: http://keycloak:8080/realms/ecommerce
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: ${EUREKA_URL}
+      KEYCLOAK_AUTH-SERVER-URL: ${KEYCLOAK_URL}
+      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI: ${KEYCLOAK_URL}/realms/ecommerce
       EUREKA_INSTANCE_HOSTNAME: user-service
     depends_on:
       - eureka-server
@@ -50,11 +50,11 @@ services:
     container_name: inventory-service
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/inventoryDB
-      SPRING_DATASOURCE_USERNAME: postgres
-      SPRING_DATASOURCE_PASSWORD: postgres
-      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka
-      KEYCLOAK_AUTH-SERVER-URL: http://keycloak:8080
-      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI: http://keycloak:8080/realms/ecommerce
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: ${EUREKA_URL}
+      KEYCLOAK_AUTH-SERVER-URL: ${KEYCLOAK_URL}
+      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI: ${KEYCLOAK_URL}/realms/ecommerce
       EUREKA_INSTANCE_HOSTNAME: inventory-service
     depends_on:
       - eureka-server
@@ -70,11 +70,11 @@ services:
     container_name: cart-service
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/cartDB
-      SPRING_DATASOURCE_USERNAME: postgres
-      SPRING_DATASOURCE_PASSWORD: postgres
-      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka
-      KEYCLOAK_AUTH-SERVER-URL: http://keycloak:8080
-      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI: http://keycloak:8080/realms/ecommerce
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: ${EUREKA_URL}
+      KEYCLOAK_AUTH-SERVER-URL: ${KEYCLOAK_URL}
+      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI: ${KEYCLOAK_URL}/realms/ecommerce
       EUREKA_INSTANCE_HOSTNAME: cart-service
     depends_on:
       - eureka-server
@@ -91,12 +91,12 @@ services:
       context: ./ProductService
     container_name: product-service
     environment:
-      SPRING_DATA_MONGODB_URI: mongodb://admin:admin@mongodb:27017/ProductDB?authSource=admin
-      SPRING_DATA_REDIS_HOST: redis-stack
-      SPRING_DATA_REDIS_PORT: 6379
-      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka
-      KEYCLOAK_AUTH-SERVER-URL: http://keycloak:8080
-      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI: http://keycloak:8080/realms/ecommerce
+      SPRING_DATA_MONGODB_URI: mongodb://${MONGO_USER}:${MONGO_PASSWORD}@mongodb:27017/ProductDB?authSource=admin
+      SPRING_DATA_REDIS_HOST: ${REDIS_HOST}
+      SPRING_DATA_REDIS_PORT: ${REDIS_PORT}
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: ${EUREKA_URL}
+      KEYCLOAK_AUTH-SERVER-URL: ${KEYCLOAK_URL}
+      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI: ${KEYCLOAK_URL}/realms/ecommerce
       EUREKA_INSTANCE_HOSTNAME: product-service
     depends_on:
       - eureka-server
@@ -114,12 +114,12 @@ services:
     container_name: order-service
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/orderDB
-      SPRING_DATASOURCE_USERNAME: postgres
-      SPRING_DATASOURCE_PASSWORD: postgres
-      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka
-      KEYCLOAK_AUTH-SERVER-URL: http://keycloak:8080
-      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI: http://keycloak:8080/realms/ecommerce
-      SPRING_KAFKA_BOOTSTRAP_SERVERS: broker:29092
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: ${EUREKA_URL}
+      KEYCLOAK_AUTH-SERVER-URL: ${KEYCLOAK_URL}
+      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI: ${KEYCLOAK_URL}/realms/ecommerce
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: ${KAFKA_BROKER}
       EUREKA_INSTANCE_HOSTNAME: order-service
     depends_on:
       - eureka-server
@@ -136,8 +136,8 @@ services:
       context: ./NotificationService
     container_name: notification-service
     environment:
-      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka
-      SPRING_KAFKA_BOOTSTRAP_SERVERS: broker:29092
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: ${EUREKA_URL}
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: ${KAFKA_BROKER}
       EUREKA_INSTANCE_HOSTNAME: notification-service
     depends_on:
       - eureka-server
