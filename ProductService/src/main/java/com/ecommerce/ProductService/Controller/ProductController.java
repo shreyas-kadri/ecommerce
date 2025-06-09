@@ -8,9 +8,11 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.util.Optional;
@@ -67,6 +69,20 @@ public class ProductController {
     {
         logger.info("GET /getAllProducts");
         return ResponseEntity.ok(productService.getAllProducts());
+    }
+
+    @PreAuthorize("hasRole('SELLER')")
+    @PostMapping("/uploadImage/{productId}")
+    public ResponseEntity<?> uploadImage(@RequestHeader("Authorization") String authorizationHeader,@PathVariable String productId,@RequestParam("image") MultipartFile[] imageFiles)
+    {
+        String accessToken = authorizationHeader.substring(7);
+        try {
+            List<String> imageUrls = productService.uploadProductImages(accessToken,productId,imageFiles);
+            return ResponseEntity.ok(imageUrls);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Failed to upload image: " + e.getMessage());
+        }
     }
 
 }

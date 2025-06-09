@@ -8,6 +8,7 @@ import lombok.NoArgsConstructor;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 
+import java.util.List;
 import java.util.Map;
 
 @Data
@@ -24,5 +25,6 @@ public class Product {
     private String description;
     private Category category;
     private Map<String,String> details;
+    private List<String> imageUrls;
 
 }

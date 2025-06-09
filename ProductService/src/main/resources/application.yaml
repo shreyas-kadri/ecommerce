@@ -33,6 +33,11 @@ interservice:
   api:
     key: my-interservice-key
 
+cloudinary:
+  cloud-name: dm7aurlci
+  api-key: 763866368527492
+  api-secret: HVDuG2a7QThZbftd3tIu-bcCiQ4
+
 eureka:
   client:
     service-url:
@@ -49,4 +54,3 @@ management:
 
 server:
   port: 8096
-

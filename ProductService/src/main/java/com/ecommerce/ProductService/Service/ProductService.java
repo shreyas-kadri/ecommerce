@@ -1,5 +1,7 @@
 package com.ecommerce.ProductService.Service;
 
+import com.cloudinary.Cloudinary;
+import com.cloudinary.utils.ObjectUtils;
 import com.ecommerce.ProductService.DTO.NameAndPriceDTO;
 import com.ecommerce.ProductService.DTO.ProductDTO;
 import com.ecommerce.ProductService.Entity.Product;
@@ -21,8 +23,12 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 @Service
@@ -34,6 +40,8 @@ public class ProductService {
     private final TokenUtil tokenUtil;
 
     private final RestTemplate restTemplate;
+
+    private final Cloudinary cloudinary;
 
     @Value("${inventory.service.url}")
     private String inventoryServiceUrl;
@@ -98,6 +106,38 @@ public class ProductService {
         productRepository.save(existingProduct);
 
         return ResponseEntity.ok("Product updated successfully");
+    }
+
+    public List<String> uploadProductImages(String accessToken,String productId, MultipartFile[] imageFiles) throws IOException
+    {
+        Product product = productRepository.findById(productId)
+                .orElseThrow(() -> new RuntimeException("Product not found with ID: " + productId));
+
+        String sellerId = tokenUtil.extractUserId(accessToken);
+
+        if (!doesSellerOwnProduct(productId, sellerId, accessToken)) {
+            logger.info(String.format("Seller with ID %s does not own this product with ID %s", sellerId,productId));
+            throw new RuntimeException("Seller does not own product");
+        }
+
+        List<String> uploadedUrls = new ArrayList<>();
+        for (MultipartFile file : imageFiles) {
+            Map<?, ?> uploadResult = cloudinary.uploader().upload(file.getBytes(),
+                    ObjectUtils.asMap("folder", "ecommerce/products/" + productId));
+
+            String imageUrl = (String) uploadResult.get("secure_url");
+            uploadedUrls.add(imageUrl);
+        }
+
+        if (product.getImageUrls() == null)
+        {
+            product.setImageUrls(new ArrayList<>());
+        }
+
+        product.getImageUrls().addAll(uploadedUrls);
+        productRepository.save(product);
+
+        return uploadedUrls;
     }
 
 

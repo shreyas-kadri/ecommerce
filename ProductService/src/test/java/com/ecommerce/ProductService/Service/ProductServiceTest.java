@@ -1,5 +1,6 @@
 package com.ecommerce.ProductService.Service;
 
+import com.cloudinary.Cloudinary;
 import com.ecommerce.ProductService.DTO.NameAndPriceDTO;
 import com.ecommerce.ProductService.DTO.ProductDTO;
 import com.ecommerce.ProductService.Entity.Product;
@@ -34,6 +35,9 @@ class ProductServiceTest {
     private ProductRepository productRepository;
 
     @Mock
+    private Cloudinary cloudinary;
+
+    @Mock
     private TokenUtil tokenUtil;
 
     @Mock
@@ -53,7 +57,8 @@ class ProductServiceTest {
         productService = new ProductService(
                 productRepository,
                 tokenUtil,
-                restTemplate
+                restTemplate,
+                cloudinary
         );
         accessToken = "dummyAccessToken";
         productId = UUID.randomUUID().toString();
