@@ -85,4 +85,20 @@ public class ProductController {
         }
     }
 
+    @PreAuthorize("hasRole('SELLER')")
+    @DeleteMapping("/deleteImages/{productId}")
+    public ResponseEntity<?> deleteImages(@RequestHeader("Authorization") String authorizationHeader,
+                                          @PathVariable String productId,
+                                          @RequestBody List<String> imageUrls) {
+        String accessToken = authorizationHeader.substring(7);
+        try {
+            List<String> deleted = productService.deleteProductImages(accessToken, productId, imageUrls);
+            return ResponseEntity.ok("Deleted images: " + deleted);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Failed to delete images: " + e.getMessage());
+        }
+    }
+
+
 }

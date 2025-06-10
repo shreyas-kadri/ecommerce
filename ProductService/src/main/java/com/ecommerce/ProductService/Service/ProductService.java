@@ -16,6 +16,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.CachePut;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
@@ -54,17 +55,7 @@ public class ProductService {
     @CachePut(value="products",key="#productDTO.productId")
     public ResponseEntity<String> createProduct(@Valid ProductDTO productDTO, String accessToken)
     {
-        String sellerId=tokenUtil.extractUserId(accessToken);
-        if(!doesProductExist(productDTO.getProductId(),accessToken))
-        {
-            logger.info("Product does not exist");
-            throw new RuntimeException("Product does not exist");
-        }
-        if(!doesSellerOwnProduct(productDTO.getProductId(),sellerId,accessToken))
-        {
-            logger.info(String.format("Seller with ID %s does not own this product with ID %s",sellerId,productDTO.getProductId()));
-            throw new RuntimeException("Seller does not own product");
-        }
+        validateProductOwnershipAndExistence(productDTO.getProductId(),accessToken);
         NameAndPriceDTO nameAndPrice = fetchNameAndPrice(productDTO.getProductId(),accessToken);
         Product product=Product.builder()
                                .productId(productDTO.getProductId())
@@ -81,18 +72,12 @@ public class ProductService {
     @CachePut(value = "products", key = "#productDTO.productId")
     public ResponseEntity<String> updateProduct(@Valid ProductDTO productDTO, String accessToken)
     {
-        String sellerId = tokenUtil.extractUserId(accessToken);
-
-        if (!doesProductExist(productDTO.getProductId(), accessToken)) {
-            logger.info("Product does not exist");
-            throw new RuntimeException("Product does not exist");
+        validateProductOwnershipAndExistence(productDTO.getProductId(),accessToken);
+        if(productRepository.findById(productDTO.getProductId()).isEmpty())
+        {
+            logger.info("Product does not exist with ID: {}", productDTO.getProductId());
+            throw new RuntimeException("Product not found in DB with ID: " + productDTO.getProductId());
         }
-
-        if (!doesSellerOwnProduct(productDTO.getProductId(), sellerId, accessToken)) {
-            logger.info(String.format("Seller with ID %s does not own this product with ID %s", sellerId, productDTO.getProductId()));
-            throw new RuntimeException("Seller does not own product");
-        }
-
         // Fetch existing product from DB to update
         Product existingProduct = productRepository.findById(productDTO.getProductId())
                 .orElseThrow(() -> new RuntimeException("Product not found"));
@@ -108,18 +93,36 @@ public class ProductService {
         return ResponseEntity.ok("Product updated successfully");
     }
 
+    @Caching(evict = {
+            @CacheEvict(value = "products", key = "#productId"),   // Evict specific product
+            @CacheEvict(value = "products", key = "'all'")         // Evict all products list
+    })
+    public void deleteProduct(String productId)
+    {
+        productRepository.deleteById(productId);
+    }
+
+    @Cacheable(value="products",key="#productId")
+    public Optional<Product> getProductByProductId(String productId)
+    {
+        return productRepository.findById(productId);
+    }
+
+    @Cacheable(value="products",key="'all'")
+    public List<Product> getAllProducts()
+    {
+        return productRepository.findAll();
+    }
+
+    @Caching(evict = {
+            @CacheEvict(value = "products", key = "#productId"),
+            @CacheEvict(value = "products", key = "'all'")
+    })
     public List<String> uploadProductImages(String accessToken,String productId, MultipartFile[] imageFiles) throws IOException
     {
+        validateProductOwnershipAndExistence(productId,accessToken);
         Product product = productRepository.findById(productId)
                 .orElseThrow(() -> new RuntimeException("Product not found with ID: " + productId));
-
-        String sellerId = tokenUtil.extractUserId(accessToken);
-
-        if (!doesSellerOwnProduct(productId, sellerId, accessToken)) {
-            logger.info(String.format("Seller with ID %s does not own this product with ID %s", sellerId,productId));
-            throw new RuntimeException("Seller does not own product");
-        }
-
         List<String> uploadedUrls = new ArrayList<>();
         for (MultipartFile file : imageFiles) {
             Map<?, ?> uploadResult = cloudinary.uploader().upload(file.getBytes(),
@@ -140,23 +143,59 @@ public class ProductService {
         return uploadedUrls;
     }
 
-
-    private NameAndPriceDTO fetchNameAndPrice(@NotBlank(message = "Product id is required") String productId,String accessToken)
+    @Caching(evict = {
+            @CacheEvict(value = "products", key = "#productId"),   // Evict specific product
+            @CacheEvict(value = "products", key = "'all'")         // Evict all products list
+    })
+    public List<String> deleteProductImages(String accessToken, String productId, List<String> imageUrls)
     {
-        try {
-            String url = inventoryServiceUrl + "/fetchNameAndPrice?productId=" + productId;
-            HttpHeaders headers = new HttpHeaders();
-            headers.set("Internal-API-Key",interServiceKey);
-            headers.setBearerAuth(accessToken);
-            HttpEntity<String> entity = new HttpEntity<>(headers);
-            ResponseEntity<NameAndPriceDTO> response = restTemplate.exchange(url, HttpMethod.GET, entity,NameAndPriceDTO.class);
-            return response.getBody();
+        validateProductOwnershipAndExistence(productId,accessToken);
+        Optional<Product> optionalProduct=productRepository.findById(productId);
+        Product product=optionalProduct.get();
+        List<String> images=product.getImageUrls();
+        List<String> deletedImages = new ArrayList<>();
+        for (String url : imageUrls) {
+            try {
+                // Extract public ID from the URL
+                String publicId = extractPublicId(url);
+                cloudinary.uploader().destroy(publicId, ObjectUtils.emptyMap());
+                deletedImages.add(url);
+            } catch (Exception e) {
+                throw new RuntimeException("Failed to delete image: " + url, e);
+            }
         }
-        catch(Exception e)
-        {
-            throw new RuntimeException(e.getMessage());
-        }
+        images.removeAll(deletedImages);
+        product.setImageUrls(images);
+        productRepository.save(product);
+        return deletedImages;
     }
+
+    private String extractPublicId(String url) {
+        // Example URL: https://res.cloudinary.com/demo/image/upload/v1234567890/folder/image-name.jpg
+        String[] parts = url.split("/");
+        String publicIdWithExtension = parts[parts.length - 1]; // image-name.jpg
+        String folder = parts[parts.length - 2];                // folder name (optional)
+        String imageName = publicIdWithExtension.split("\\.")[0]; // image-name
+        return "ecommerce/products/" + folder + "/" + imageName; // Adjust to your folder structure
+    }
+
+    private void validateProductOwnershipAndExistence(String productId, String accessToken)
+    {
+        String sellerId = tokenUtil.extractUserId(accessToken);
+
+        if (!doesProductExist(productId, accessToken)) {
+            logger.info("Product does not exist with ID: {}", productId);
+            throw new RuntimeException("Product does not exist");
+        }
+
+        if (!doesSellerOwnProduct(productId, sellerId, accessToken))
+        {
+            logger.info("Seller with ID {} does not own product with ID {}", sellerId, productId);
+            throw new RuntimeException("Seller does not own product");
+        }
+
+    }
+
 
     public boolean doesProductExist(String productId,String accessToken)
     {
@@ -194,27 +233,26 @@ public class ProductService {
         }
     }
 
-    @CacheEvict(value="products",key="#productId")
-    public void deleteProduct(String productId)
+    private NameAndPriceDTO fetchNameAndPrice(@NotBlank(message = "Product id is required") String productId,String accessToken)
     {
-        productRepository.deleteById(productId);
-    }
-
-    @Cacheable(value="products",key="#productId")
-    public Optional<Product> getProductByProductId(String productId)
-    {
-        return productRepository.findById(productId);
-    }
-
-    @Cacheable(value="products",key="'all'")
-    public List<Product> getAllProducts()
-    {
-        return productRepository.findAll();
+        try {
+            String url = inventoryServiceUrl + "/fetchNameAndPrice?productId=" + productId;
+            HttpHeaders headers = new HttpHeaders();
+            headers.set("Internal-API-Key",interServiceKey);
+            headers.setBearerAuth(accessToken);
+            HttpEntity<String> entity = new HttpEntity<>(headers);
+            ResponseEntity<NameAndPriceDTO> response = restTemplate.exchange(url, HttpMethod.GET, entity,NameAndPriceDTO.class);
+            return response.getBody();
+        }
+        catch(Exception e)
+        {
+            throw new RuntimeException(e.getMessage());
+        }
     }
 
     public List<Product> getAllProductsBySellerId(String sellerId,String accessToken)
     {
-        //call inventory service to verify whether product exists
+
         try {
             String url = inventoryServiceUrl + "/getProductIds/" + sellerId;
             HttpHeaders headers = new HttpHeaders();
@@ -235,4 +273,5 @@ public class ProductService {
             throw new RuntimeException(e.getMessage());
         }
     }
+
 }
