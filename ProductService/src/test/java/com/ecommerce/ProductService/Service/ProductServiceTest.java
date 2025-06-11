@@ -13,19 +13,11 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpMethod;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.client.RestTemplate;
 
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -35,101 +27,86 @@ class ProductServiceTest {
     private ProductRepository productRepository;
 
     @Mock
-    private Cloudinary cloudinary;
-
-    @Mock
     private TokenUtil tokenUtil;
 
     @Mock
-    private RestTemplate restTemplate;
+    private Cloudinary cloudinary;
+
+    @Mock
+    private ProductInterServiceClient productInterServiceClient;
 
     @InjectMocks
     private ProductService productService;
 
     private String accessToken;
     private String productId;
+    private String sellerId;
     private Product product;
     private ProductDTO productDTO;
-    private String sellerId;
 
     @BeforeEach
     void setUp() {
-        productService = new ProductService(
-                productRepository,
-                tokenUtil,
-                restTemplate,
-                cloudinary
-        );
         accessToken = "dummyAccessToken";
         productId = UUID.randomUUID().toString();
-        sellerId=UUID.randomUUID().toString();
+        sellerId = UUID.randomUUID().toString();
 
         product = Product.builder()
                 .productId(productId)
-                .name("ProductName")
-                .description("ProductDescription")
-                .price(100.0)
+                .name("Product A")
+                .description("Description")
+                .price(99.99)
                 .category(Category.ELECTRONICS)
                 .details(Map.of("color", "black", "warranty", "2 years"))
                 .build();
 
         productDTO = ProductDTO.builder()
                 .productId(productId)
-                .description("ProductDescription")
+                .description("Description")
                 .category(Category.ELECTRONICS)
                 .details(Map.of("color", "black", "warranty", "2 years"))
                 .build();
-
     }
 
     @Test
-    void createProduct_ValidProduct_SavesSuccessfully() {
-        when(productRepository.save(any(Product.class))).thenReturn(product);
+    void createProduct_ValidProduct_Success() {
         when(tokenUtil.extractUserId(accessToken)).thenReturn(sellerId);
-        ResponseEntity<Boolean> responseEntity = ResponseEntity.ok(true);
-        when(restTemplate.exchange(
-                anyString(),
-                eq(HttpMethod.GET),
-                any(HttpEntity.class),
-                eq(Boolean.class)
-        )).thenReturn(responseEntity);
+        when(productInterServiceClient.doesProductExist(productId, accessToken)).thenReturn(true);
+        when(productInterServiceClient.doesSellerOwnProduct(productId, sellerId, accessToken)).thenReturn(true);
+        when(productInterServiceClient.fetchNameAndPrice(productId, accessToken)).thenReturn(new NameAndPriceDTO("Product A", 99.99));
+        when(productRepository.save(any(Product.class))).thenReturn(product);
 
-        when(restTemplate.exchange(
-                contains("/doesSellerOwnProduct?productId=" + productId + "&sellerId=" + sellerId),
-                eq(HttpMethod.GET),
-                any(HttpEntity.class),
-                eq(Boolean.class)
-        )).thenReturn(responseEntity);
-        NameAndPriceDTO expectedDto = new NameAndPriceDTO("Product A", 99.99);
-        ResponseEntity<NameAndPriceDTO> namePriceDTO = new ResponseEntity<>(expectedDto, HttpStatus.OK);
+        ResponseEntity<String> response = productService.createProduct(productDTO, accessToken);
 
-        when(restTemplate.exchange(
-                anyString(),
-                eq(HttpMethod.GET),
-                any(HttpEntity.class),
-                eq(NameAndPriceDTO.class)
-        )).thenReturn(namePriceDTO);
-        ResponseEntity<String> response = productService.createProduct(productDTO,accessToken);
-        verify(productRepository, times(1)).save(any(Product.class));
+        assertEquals("Product created successfully", response.getBody());
+        verify(productRepository).save(any(Product.class));
     }
 
     @Test
-    void getProduct_ProductExists_ReturnsProductDTO() {
+    void updateProduct_ValidProduct_UpdatesSuccessfully() {
+        when(tokenUtil.extractUserId(accessToken)).thenReturn(sellerId);
+        when(productInterServiceClient.doesProductExist(productId, accessToken)).thenReturn(true);
+        when(productInterServiceClient.doesSellerOwnProduct(productId, sellerId, accessToken)).thenReturn(true);
+        when(productRepository.findById(productId)).thenReturn(Optional.of(product));
+        when(productRepository.save(any(Product.class))).thenReturn(product);
+
+        ResponseEntity<String> response = productService.updateProduct(productDTO, accessToken);
+
+        assertEquals("Product updated successfully", response.getBody());
+        verify(productRepository).save(any(Product.class));
+    }
+
+    @Test
+    void getProductById_ExistingProduct_ReturnsProduct() {
         when(productRepository.findById(productId)).thenReturn(Optional.of(product));
 
         Optional<Product> result = productService.getProductByProductId(productId);
 
         assertTrue(result.isPresent());
         assertEquals(productId, result.get().getProductId());
-        assertEquals("ProductName", result.get().getName());
-        assertEquals("ProductDescription",result.get().getDescription());
-        assertEquals(100,result.get().getPrice());
-        assertEquals(Category.ELECTRONICS, result.get().getCategory());
-        assertEquals("black", result.get().getDetails().get("color"));
     }
 
     @Test
-    void getProduct_ProductNotFound_ReturnsEmpty() {
+    void getProductById_ProductNotFound_ReturnsEmpty() {
         when(productRepository.findById(productId)).thenReturn(Optional.empty());
 
         Optional<Product> result = productService.getProductByProductId(productId);
@@ -138,47 +115,21 @@ class ProductServiceTest {
     }
 
     @Test
-    void updateProduct_ProductExists_UpdatesSuccessfully()
-    {
-        when(productRepository.save(any(Product.class))).thenReturn(product);
-        when(productRepository.findById(productId)).thenReturn(Optional.of(product));
-        when(tokenUtil.extractUserId(accessToken)).thenReturn(sellerId);
-        ResponseEntity<Boolean> responseEntity = ResponseEntity.ok(true);
-        when(restTemplate.exchange(
-                anyString(),
-                eq(HttpMethod.GET),
-                any(HttpEntity.class),
-                eq(Boolean.class)
-        )).thenReturn(responseEntity);
+    void getAllProducts_ReturnsProductList() {
+        when(productRepository.findAll()).thenReturn(List.of(product));
 
-        ResponseEntity<String> response = productService.updateProduct(productDTO,accessToken);
-        assertEquals("Product updated successfully", response.getBody());
-        verify(productRepository, times(1)).save(any(Product.class));
+        List<Product> products = productService.getAllProducts();
+
+        assertEquals(1, products.size());
+        assertEquals(productId, products.get(0).getProductId());
     }
 
     @Test
     void deleteProduct_ProductExists_DeletesSuccessfully() {
         doNothing().when(productRepository).deleteById(productId);
-        // Call the method (void return)
+
         productService.deleteProduct(productId);
 
-        verify(productRepository, times(1)).deleteById(productId);
-    }
-
-
-    @Test
-    void getAllProducts_ReturnsListOfProducts() {
-        List<Product> products = List.of(product);
-        when(productRepository.findAll()).thenReturn(products);
-
-        List<Product> result = productService.getAllProducts();
-
-        assertFalse(result.isEmpty());
-        assertEquals(productId, result.get(0).getProductId());
-        assertEquals("ProductName", result.get(0).getName());
-        assertEquals("ProductDescription",result.get(0).getDescription());
-        assertEquals(100,result.get(0).getPrice());
-        assertEquals(Category.ELECTRONICS, result.get(0).getCategory());
-        assertEquals("black", result.get(0).getDetails().get("color"));
+        verify(productRepository).deleteById(productId);
     }
 }

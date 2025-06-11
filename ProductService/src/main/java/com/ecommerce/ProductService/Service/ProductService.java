@@ -7,6 +7,7 @@ import com.ecommerce.ProductService.DTO.ProductDTO;
 import com.ecommerce.ProductService.Entity.Product;
 import com.ecommerce.ProductService.Repository.ProductRepository;
 import com.ecommerce.ProductService.Utility.TokenUtil;
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
@@ -44,6 +45,8 @@ public class ProductService {
 
     private final Cloudinary cloudinary;
 
+    private final ProductInterServiceClient productInterServiceClient;
+
     @Value("${inventory.service.url}")
     private String inventoryServiceUrl;
 
@@ -56,7 +59,7 @@ public class ProductService {
     public ResponseEntity<String> createProduct(@Valid ProductDTO productDTO, String accessToken)
     {
         validateProductOwnershipAndExistence(productDTO.getProductId(),accessToken);
-        NameAndPriceDTO nameAndPrice = fetchNameAndPrice(productDTO.getProductId(),accessToken);
+        NameAndPriceDTO nameAndPrice = productInterServiceClient.fetchNameAndPrice(productDTO.getProductId(),accessToken);
         Product product=Product.builder()
                                .productId(productDTO.getProductId())
                                .name(nameAndPrice.getName())
@@ -183,12 +186,12 @@ public class ProductService {
     {
         String sellerId = tokenUtil.extractUserId(accessToken);
 
-        if (!doesProductExist(productId, accessToken)) {
+        if (!productInterServiceClient.doesProductExist(productId, accessToken)) {
             logger.info("Product does not exist with ID: {}", productId);
             throw new RuntimeException("Product does not exist");
         }
 
-        if (!doesSellerOwnProduct(productId, sellerId, accessToken))
+        if (!productInterServiceClient.doesSellerOwnProduct(productId, sellerId, accessToken))
         {
             logger.info("Seller with ID {} does not own product with ID {}", sellerId, productId);
             throw new RuntimeException("Seller does not own product");
@@ -196,82 +199,29 @@ public class ProductService {
 
     }
 
-
-    public boolean doesProductExist(String productId,String accessToken)
+    @CircuitBreaker(name = "inventoryService", fallbackMethod = "fallbackGetAllProductsBySellerId")
+    public List<Product> getAllProductsBySellerId(String sellerId, String accessToken)
     {
-        //call inventory service to verify whether product exists
-        try {
-            String url = inventoryServiceUrl + "/doesProductExist?productId=" + productId;
-            HttpHeaders headers = new HttpHeaders();
-            headers.set("Internal-API-Key",interServiceKey);
-            headers.setBearerAuth(accessToken);
-            HttpEntity<String> entity = new HttpEntity<>(headers);
-            ResponseEntity<Boolean> response = restTemplate.exchange(url, HttpMethod.GET, entity, Boolean.class);
-            return response.getBody() != null && response.getBody();
-        }
-        catch(Exception e)
-        {
-            throw new RuntimeException(e.getMessage());
-        }
+        String url = inventoryServiceUrl + "/getProductIds/" + sellerId;
+        HttpHeaders headers = new HttpHeaders();
+        headers.set("Internal-API-Key",interServiceKey);
+        headers.setBearerAuth(accessToken);
+        HttpEntity<String> entity = new HttpEntity<>(headers);
+        ResponseEntity<List<String>> response = restTemplate.exchange(
+                url,
+                HttpMethod.GET,
+                entity,
+                new ParameterizedTypeReference<List<String>>() {}
+        );
+        List<String> productIds=response.getBody();
+        return productRepository.findProductsByProductIds(productIds);
     }
 
-    public boolean doesSellerOwnProduct(String productId,String sellerId,String accessToken)
+    private List<Product> fallbackGetAllProductsBySellerId(String sellerId, String accessToken, Throwable t)
     {
-        //call inventory service to verify whether product exists
-        try {
-            String url = inventoryServiceUrl + "/doesSellerOwnProduct?productId=" + productId + "&sellerId=" + sellerId;
-            HttpHeaders headers = new HttpHeaders();
-            headers.set("Internal-API-Key",interServiceKey);
-            headers.setBearerAuth(accessToken);
-            HttpEntity<String> entity = new HttpEntity<>(headers);
-            ResponseEntity<Boolean> response = restTemplate.exchange(url, HttpMethod.GET, entity, Boolean.class);
-            return response.getBody() != null && response.getBody();
-        }
-        catch(Exception e)
-        {
-            throw new RuntimeException(e.getMessage());
-        }
-    }
-
-    private NameAndPriceDTO fetchNameAndPrice(@NotBlank(message = "Product id is required") String productId,String accessToken)
-    {
-        try {
-            String url = inventoryServiceUrl + "/fetchNameAndPrice?productId=" + productId;
-            HttpHeaders headers = new HttpHeaders();
-            headers.set("Internal-API-Key",interServiceKey);
-            headers.setBearerAuth(accessToken);
-            HttpEntity<String> entity = new HttpEntity<>(headers);
-            ResponseEntity<NameAndPriceDTO> response = restTemplate.exchange(url, HttpMethod.GET, entity,NameAndPriceDTO.class);
-            return response.getBody();
-        }
-        catch(Exception e)
-        {
-            throw new RuntimeException(e.getMessage());
-        }
-    }
-
-    public List<Product> getAllProductsBySellerId(String sellerId,String accessToken)
-    {
-
-        try {
-            String url = inventoryServiceUrl + "/getProductIds/" + sellerId;
-            HttpHeaders headers = new HttpHeaders();
-            headers.set("Internal-API-Key",interServiceKey);
-            headers.setBearerAuth(accessToken);
-            HttpEntity<String> entity = new HttpEntity<>(headers);
-            ResponseEntity<List<String>> response = restTemplate.exchange(
-                    url,
-                    HttpMethod.GET,
-                    entity,
-                    new ParameterizedTypeReference<List<String>>() {}
-            );
-            List<String> productIds=response.getBody();
-            return productRepository.findProductsByProductIds(productIds);
-        }
-        catch(Exception e)
-        {
-            throw new RuntimeException(e.getMessage());
-        }
+        logger.warn("Fallback for getAllProductsBySellerId due to: {}", t.getMessage());
+        List<Product> products=new ArrayList<>();
+        return products;
     }
 
 }

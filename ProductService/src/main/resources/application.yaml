@@ -38,6 +38,18 @@ cloudinary:
   api-key: 763866368527492
   api-secret: HVDuG2a7QThZbftd3tIu-bcCiQ4
 
+resilience4j:
+  circuitbreaker:
+    instances:
+      inventoryService:
+        registerHealthIndicator: true
+        slidingWindowSize: 10
+        minimumNumberOfCalls: 5
+        failureRateThreshold: 50
+        waitDurationInOpenState: 10s
+        permittedNumberOfCallsInHalfOpenState: 3
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+
 eureka:
   client:
     service-url:
