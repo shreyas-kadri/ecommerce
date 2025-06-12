@@ -16,7 +16,7 @@ public class InternalApiKeyInterceptor implements HandlerInterceptor {
     private String interserviceKey;
 
     @Override
-    public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
+    public boolean preHandle(HttpServletRequest request, HttpServletResponse response,Object handler) throws Exception {
         String apiKey = request.getHeader("Internal-API-Key");
 
         if (!interserviceKey.equals(apiKey)) {

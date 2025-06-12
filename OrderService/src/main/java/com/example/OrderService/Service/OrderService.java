@@ -8,21 +8,12 @@ import com.example.OrderService.Entity.Order;
 import com.example.OrderService.Entity.OrderItem;
 import com.example.OrderService.Enum.OrderStatus;
 import com.example.OrderService.Enum.PaymentStatus;
-import com.example.OrderService.Event.OrderPlacedEvent;
 import com.example.OrderService.Repository.OrderItemRepository;
 import com.example.OrderService.Repository.OrderRepository;
 import com.example.OrderService.Utility.TokenUtil;
 import lombok.RequiredArgsConstructor;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.core.ParameterizedTypeReference;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestTemplate;
 
 import java.math.BigInteger;
 import java.util.ArrayList;
@@ -30,39 +21,24 @@ import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
-@Service
 @RequiredArgsConstructor
+@Service
 public class OrderService {
 
     private final OrderRepository orderRepository;
-
     private final OrderItemRepository orderItemRepository;
-
     private final KafkaProducerService kafkaProducerService;
-
     private final TokenUtil tokenUtil;
-
-    private final RestTemplate restTemplate;
-
-    private static final Logger logger = LoggerFactory.getLogger(OrderService.class);
-
-    @Value("${cart.service.url}")
-    private String cartServiceUrl;
-
-    @Value("${inventory.service.url}")
-    private String inventoryServiceUrl;
-
-    @Value("${interservice.api.key}")
-    private String interServiceKey;
+    private final OrderInterServiceClient  orderInterServiceClient;
 
     public ResponseEntity<String> placeOrder(String accessToken, OrderDTO orderDTO)
     {
         String userId=tokenUtil.extractUserId(accessToken);
-        CartSummaryDTO cartSummaryDTO=getUserCart(accessToken);
+        CartSummaryDTO cartSummaryDTO=orderInterServiceClient.getUserCart(accessToken);
 
         List<CartProductDTO> productsInCart=cartSummaryDTO.getProducts();
 
-        Boolean isCartValid=isCartValid(productsInCart,accessToken);
+        Boolean isCartValid=orderInterServiceClient.isCartValid(productsInCart,accessToken);
 
         if(!isCartValid)
         {
@@ -85,7 +61,7 @@ public class OrderService {
                 .map(CartProductDTO::getProductId)
                 .collect(Collectors.toList());
 
-        List<ProductDTO> cartProducts=getCartProducts(accessToken,productIds);
+        List<ProductDTO> cartProducts=orderInterServiceClient.getCartProducts(accessToken,productIds);
 
         List<OrderItem> orderItems=new ArrayList<>();
 
@@ -108,97 +84,15 @@ public class OrderService {
         );
 
         orderItemRepository.saveAll(orderItems);
-        clearCart(accessToken);
+        orderInterServiceClient.clearCart(accessToken);
         kafkaProducerService.sendOrderPlacedEvent(accessToken,userId,orderId,cartSummaryDTO.getTotalBill(),orderDTO.getShippingAddress());
         return ResponseEntity.ok("Order Placed Successfully");
 
     }
 
-    private void clearCart(String accessToken)
-    {
-        try {
-            String url = cartServiceUrl + "/clearCart";
-            HttpHeaders headers = new HttpHeaders();
-            headers.setBearerAuth(accessToken);
-            HttpEntity<Void> entity = new HttpEntity<>(headers);
-            ResponseEntity<String> response = restTemplate.exchange(
-                    url,
-                    HttpMethod.DELETE,
-                    entity,
-                    String.class
-            );
-        } catch (Exception e) {
-            logger.error("Error clearing cart in cart service: {}", e.getMessage());
-            throw new RuntimeException("Failed to clear user cart from cart service");
-        }
-    }
-
-    private CartSummaryDTO getUserCart(String accessToken)
-    {
-        try {
-            String url = cartServiceUrl + "/getCartSummary";
-            HttpHeaders headers = new HttpHeaders();
-            headers.setBearerAuth(accessToken);
-            HttpEntity<Void> entity = new HttpEntity<>(headers);
-            ResponseEntity<CartSummaryDTO> response = restTemplate.exchange(url, HttpMethod.GET, entity,CartSummaryDTO.class);
-            return response.getBody();
-        }
-        catch(Exception e)
-        {
-            logger.error("Error Fetching cart in cart service: {}", e.getMessage());
-            throw new RuntimeException("Failed to fetch user cart from cart service");
-        }
-    }
-
-    private Boolean isCartValid(List<CartProductDTO> cartProducts, String accessToken)
-    {
-        try {
-            String url = inventoryServiceUrl + "/isCartValid";
-            HttpHeaders headers = new HttpHeaders();
-            headers.setBearerAuth(accessToken);
-            headers.set("Internal-API-Key",interServiceKey);
-            HttpEntity<List<CartProductDTO>> entity = new HttpEntity<>(cartProducts,headers);
-            ResponseEntity<Boolean> response = restTemplate.exchange(
-                    url,
-                    HttpMethod.POST,
-                    entity,
-                    Boolean.class
-            );
-            return response.getBody();
-        }
-        catch(Exception e)
-        {
-            logger.error("Error Fetching cart in cart service: {}", e.getMessage());
-            throw new RuntimeException("Failed to fetch user cart from cart service");
-        }
-    }
-
-    private List<ProductDTO> getCartProducts(String accessToken, List<String> productIds)
-    {
-        try {
-            String url = inventoryServiceUrl + "/getCartProducts";
-            HttpHeaders headers = new HttpHeaders();
-            headers.setBearerAuth(accessToken);
-            headers.set("Internal-API-Key",interServiceKey);
-            HttpEntity<List<String>> entity = new HttpEntity<>(productIds,headers);
-            ResponseEntity<List<ProductDTO>> response = restTemplate.exchange(
-                    url,
-                    HttpMethod.POST,
-                    entity,
-                    new ParameterizedTypeReference<List<ProductDTO>>() {}
-            );
-            return response.getBody();
-        }
-        catch(Exception e)
-        {
-            logger.error("Error Fetching cart in cart service: {}", e.getMessage());
-            throw new RuntimeException("Failed to fetch user cart from cart service");
-        }
-    }
-
-    public List<Order> getOrderHistory(String accessToken)
-    {
-        String userId=tokenUtil.extractUserId(accessToken);
+    public List<Order> getOrderHistory(String accessToken) {
+        String userId = tokenUtil.extractUserId(accessToken);
         return orderRepository.getOrderHistory(userId);
     }
 }
+

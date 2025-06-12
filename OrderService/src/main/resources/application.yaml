@@ -52,6 +52,23 @@ interservice:
   api:
     key: my-interservice-key
 
+resilience4j:
+  circuitbreaker:
+    configs:
+      default:
+        slidingWindowSize: 10
+        minimumNumberOfCalls: 5
+        failureRateThreshold: 50
+        waitDurationInOpenState: 10s
+        permittedNumberOfCallsInHalfOpenState: 3
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+        registerHealthIndicator: true
+    instances:
+      cartService:
+        baseConfig: default
+      inventoryService:
+        baseConfig: default
+
 eureka:
   client:
     service-url:

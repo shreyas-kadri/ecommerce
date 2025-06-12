@@ -2,10 +2,7 @@ package com.example.OrderService.Service;
 
 import com.example.OrderService.DTO.*;
 import com.example.OrderService.Entity.Order;
-import com.example.OrderService.Entity.OrderItem;
-import com.example.OrderService.Enum.OrderStatus;
 import com.example.OrderService.Enum.PaymentMode;
-import com.example.OrderService.Enum.PaymentStatus;
 import com.example.OrderService.Repository.OrderItemRepository;
 import com.example.OrderService.Repository.OrderRepository;
 import com.example.OrderService.Utility.TokenUtil;
@@ -14,10 +11,9 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.*;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.core.ParameterizedTypeReference;
-import org.springframework.http.*;
-import org.springframework.web.client.RestTemplate;
-import java.util.*;
+import org.springframework.http.ResponseEntity;
+
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -38,166 +34,88 @@ class OrderServiceTest {
     private TokenUtil tokenUtil;
 
     @Mock
-    private RestTemplate restTemplate;
+    private OrderInterServiceClient orderInterServiceClient;
 
     @InjectMocks
     private OrderService orderService;
 
-    @BeforeEach
-    void setup() {
-        MockitoAnnotations.openMocks(this);
-        orderService = new OrderService(orderRepository, orderItemRepository,
-                kafkaProducerService, tokenUtil,
-                restTemplate);
+    private String token;
+    private String userId;
 
+    @BeforeEach
+    void setUp() {
+        token = "dummy-token";
+        userId = "user123";
     }
 
     @Test
     void testPlaceOrder_Success() {
-        String token = "valid-token";
-        String userId = "user123";
-        String orderId = UUID.randomUUID().toString();
-
         OrderDTO orderDTO = new OrderDTO();
-        orderDTO.setShippingAddress("123 Test Street");
-        orderDTO.setPaymentMode(PaymentMode.ONLINE);
+        orderDTO.setShippingAddress("Some Address");
+        orderDTO.setPaymentMode(PaymentMode.CASH_ON_DELIVERY);
 
-        CartSummaryDTO cartSummaryDTO = new CartSummaryDTO();
-        cartSummaryDTO.setTotalBill(999.99);
         List<CartProductDTO> cartProducts = List.of(
                 new CartProductDTO("prod1", 2),
                 new CartProductDTO("prod2", 1)
         );
+
+        CartSummaryDTO cartSummaryDTO = new CartSummaryDTO();
         cartSummaryDTO.setProducts(cartProducts);
+        cartSummaryDTO.setTotalBill(500.0);
 
         List<ProductDTO> productDTOs = List.of(
-                new ProductDTO("id1",100.0, "Product 1", 100),
-                new ProductDTO("id2",150.0, "Product 2", 200)
+                new ProductDTO("prod1", 100.0, "Product 1", 50),
+                new ProductDTO("prod2", 150.0, "Product 2", 30)
         );
 
         when(tokenUtil.extractUserId(token)).thenReturn(userId);
-        when(restTemplate.exchange(
-                anyString(),
-                eq(HttpMethod.GET),
-                any(HttpEntity.class),
-                eq(CartSummaryDTO.class)
-        )).thenReturn(new ResponseEntity<>(cartSummaryDTO, HttpStatus.OK));
+        when(orderInterServiceClient.getUserCart(token)).thenReturn(cartSummaryDTO);
+        when(orderInterServiceClient.isCartValid(cartProducts, token)).thenReturn(true);
+        when(orderInterServiceClient.getCartProducts(token, List.of("prod1", "prod2"))).thenReturn(productDTOs);
 
-        when(restTemplate.exchange(
-                anyString(),
-                eq(HttpMethod.POST),
-                any(HttpEntity.class),
-                eq(Boolean.class)
-        )).thenReturn(new ResponseEntity<>(true, HttpStatus.OK));
+        ResponseEntity<String> response = orderService.placeOrder(token, orderDTO);
 
-        when(restTemplate.exchange(
-                anyString(),
-                eq(HttpMethod.POST),
-                any(HttpEntity.class),
-                ArgumentMatchers.<ParameterizedTypeReference<List<ProductDTO>>>any()
-        )).thenReturn(new ResponseEntity<>(productDTOs, HttpStatus.OK));
-
-        ResponseEntity<String> result = orderService.placeOrder(token, orderDTO);
-
-        assertEquals("Order Placed Successfully", result.getBody());
-        verify(orderRepository, times(1)).save(any(Order.class));
-        verify(orderItemRepository, times(1)).saveAll(anyList());
-        verify(kafkaProducerService, times(1)).sendOrderPlacedEvent(
-                eq(token), eq(userId), anyString(), eq(999.99), eq("123 Test Street"));
+        assertEquals("Order Placed Successfully", response.getBody());
+        verify(orderRepository).save(any(Order.class));
+        verify(orderItemRepository).saveAll(anyList());
+        verify(orderInterServiceClient).clearCart(token);
+        verify(kafkaProducerService).sendOrderPlacedEvent(
+                eq(token), eq(userId), anyString(), eq(500.0), eq("Some Address"));
     }
 
     @Test
-    void testPlaceOrder_InvalidStock() {
-        String token = "token";
-        String userId = "user";
-
-        CartSummaryDTO cartSummaryDTO = new CartSummaryDTO();
-        cartSummaryDTO.setTotalBill(100.0);
-        cartSummaryDTO.setProducts(List.of(new CartProductDTO("prod1", 1)));
-
+    void testPlaceOrder_InsufficientStock() {
         OrderDTO orderDTO = new OrderDTO();
-        orderDTO.setShippingAddress("address");
+        orderDTO.setShippingAddress("Test");
         orderDTO.setPaymentMode(PaymentMode.ONLINE);
 
+        List<CartProductDTO> cartProducts = List.of(new CartProductDTO("prod1", 3));
+        CartSummaryDTO cartSummaryDTO = new CartSummaryDTO();
+        cartSummaryDTO.setProducts(cartProducts);
+        cartSummaryDTO.setTotalBill(300.0);
+
         when(tokenUtil.extractUserId(token)).thenReturn(userId);
-        when(restTemplate.exchange(anyString(), eq(HttpMethod.GET), any(HttpEntity.class), eq(CartSummaryDTO.class)))
-                .thenReturn(new ResponseEntity<>(cartSummaryDTO, HttpStatus.OK));
-        when(restTemplate.exchange(anyString(), eq(HttpMethod.POST), any(HttpEntity.class), eq(Boolean.class)))
-                .thenReturn(new ResponseEntity<>(false, HttpStatus.OK));
+        when(orderInterServiceClient.getUserCart(token)).thenReturn(cartSummaryDTO);
+        when(orderInterServiceClient.isCartValid(cartProducts, token)).thenReturn(false);
 
-        ResponseEntity<String> result = orderService.placeOrder(token, orderDTO);
+        ResponseEntity<String> response = orderService.placeOrder(token, orderDTO);
 
-        assertEquals("Not enough stock/out of stock", result.getBody());
-        verify(orderRepository, never()).save(any(Order.class));
+        assertEquals("Not enough stock/out of stock", response.getBody());
+        verify(orderRepository, never()).save(any());
+        verify(orderItemRepository, never()).saveAll(anyList());
+        verify(orderInterServiceClient, never()).clearCart(any());
     }
 
     @Test
     void testGetOrderHistory() {
-        String token = "token";
-        String userId = "user123";
-        List<Order> mockOrders = List.of(new Order());
+        List<Order> expectedOrders = List.of(new Order(), new Order());
 
         when(tokenUtil.extractUserId(token)).thenReturn(userId);
-        when(orderRepository.getOrderHistory(userId)).thenReturn(mockOrders);
+        when(orderRepository.getOrderHistory(userId)).thenReturn(expectedOrders);
 
         List<Order> result = orderService.getOrderHistory(token);
-        assertEquals(1, result.size());
-        verify(orderRepository, times(1)).getOrderHistory(userId);
+
+        assertEquals(2, result.size());
+        verify(orderRepository).getOrderHistory(userId);
     }
-
-    @Test
-    void testClearCart_Failure() {
-        String token = "token";
-        String userId = "user1";
-        OrderDTO orderDTO = new OrderDTO();
-        orderDTO.setShippingAddress("abc");
-        orderDTO.setPaymentMode(PaymentMode.ONLINE);
-
-        // Stub user ID
-        when(tokenUtil.extractUserId(token)).thenReturn(userId);
-
-        // Stub getCartSummary
-        CartSummaryDTO cartSummary = new CartSummaryDTO();
-        cartSummary.setTotalBill(500.0);
-        cartSummary.setProducts(List.of(new CartProductDTO("prod1", 1)));
-        when(restTemplate.exchange(
-                anyString(),
-                eq(HttpMethod.GET),
-                any(HttpEntity.class),
-                eq(CartSummaryDTO.class)
-        )).thenReturn(new ResponseEntity<>(cartSummary, HttpStatus.OK));
-
-        // Stub isCartValid
-        when(restTemplate.exchange(
-                anyString(),
-                eq(HttpMethod.POST),
-                any(HttpEntity.class),
-                eq(Boolean.class)
-        )).thenReturn(new ResponseEntity<>(true, HttpStatus.OK));
-
-        // Stub getCartProducts
-        List<ProductDTO> productDTOs = List.of(new ProductDTO("prod1", 100.0, "Product 1", 10));
-        when(restTemplate.exchange(
-                anyString(),
-                eq(HttpMethod.POST),
-                any(HttpEntity.class),
-                ArgumentMatchers.<ParameterizedTypeReference<List<ProductDTO>>>any()
-        )).thenReturn(new ResponseEntity<>(productDTOs, HttpStatus.OK));
-
-        // Now simulate failure in clearCart
-        doThrow(new RuntimeException("Service unavailable")).when(restTemplate).exchange(
-                anyString(),
-                eq(HttpMethod.DELETE),
-                any(HttpEntity.class),
-                eq(String.class)
-        );
-
-        // Test
-        RuntimeException exception = assertThrows(RuntimeException.class, () -> {
-            orderService.placeOrder(token, orderDTO);
-        });
-
-        assertTrue(exception.getMessage().contains("Failed to clear user cart"));
-    }
-
 }
