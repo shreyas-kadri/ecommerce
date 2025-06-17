@@ -29,27 +29,21 @@ public class CartService {
 
     private final TokenUtil tokenUtil;
 
-    private final RestTemplate restTemplate;
-
-    @Value("${inventory.service.url}")
-    private String inventoryServiceUrl;
-
-    @Value("${interservice.api.key}")
-    private String interServiceKey;
+    private final CartInterServiceClient cartInterServiceClient;
 
     private static final Logger logger = LoggerFactory.getLogger(CartService.class);
 
     public ResponseEntity<String> addToCart(String accessToken, ProductDTO productDTO)
     {
         //check if it is a valid product which exists in product db
-        if(!doesProductExists(productDTO.getProductId(),accessToken))
+        if(!cartInterServiceClient.doesProductExists(productDTO.getProductId(),accessToken))
         {
             logger.info("Product with ID {} does not exist",productDTO.getProductId());
             return ResponseEntity.ok("Product not found");
         }
 
         //check if product is in stock
-        if(!isInStock(productDTO,accessToken))
+        if(!cartInterServiceClient.isInStock(productDTO,accessToken))
         {
             logger.info("Product with ID {} is not in stock",productDTO.getProductId());
             return ResponseEntity.ok("Product is not in stock");
@@ -128,42 +122,6 @@ public class CartService {
     }
 
 
-    private boolean doesProductExists(String productId,String accessToken)
-    {
-            //call inventory service to verify whether product exists
-        try {
-            String url = inventoryServiceUrl + "/doesProductExist?productId=" + productId;
-            HttpHeaders headers = new HttpHeaders();
-            headers.set("Internal-API-Key",interServiceKey);
-            headers.setBearerAuth(accessToken);
-            HttpEntity<String> entity = new HttpEntity<>(headers);
-            ResponseEntity<Boolean> response = restTemplate.exchange(url, HttpMethod.GET, entity, Boolean.class);
-            return response.getBody() != null && response.getBody();
-        }
-        catch(Exception e)
-        {
-            throw new RuntimeException(e.getMessage());
-        }
-    }
-
-    private boolean isInStock(ProductDTO productDTO,String accessToken)
-    {
-        //call inventory service to verify whether product is in stock
-        try {
-            String url = inventoryServiceUrl + "/isInStock?productId=" + productDTO.getProductId() + "&quantity=" + productDTO.getQuantity();
-            HttpHeaders headers = new HttpHeaders();
-            headers.set("Internal-API-Key",interServiceKey);
-            headers.setBearerAuth(accessToken);
-            HttpEntity<String> entity = new HttpEntity<>(headers);
-            ResponseEntity<Boolean> response = restTemplate.exchange(url, HttpMethod.GET, entity, Boolean.class);
-            return response.getBody() != null && response.getBody();
-        }
-        catch(Exception e)
-        {
-            throw new RuntimeException(e.getMessage());
-        }
-    }
-
     public ResponseEntity<CartSummaryDTO> getCartSummary(String accessToken)
     {
         String userId=tokenUtil.extractUserId(accessToken);
@@ -184,31 +142,10 @@ public class CartService {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
         }
 
-        double totalBill=getTotalBill(cartProducts,accessToken);
+        double totalBill=cartInterServiceClient.getTotalBill(cartProducts,accessToken);
 
         return ResponseEntity.ok(new CartSummaryDTO(cartId.get(),cartProducts,totalBill));
 
-    }
-
-    private double getTotalBill(List<ProductDTO> cartProducts, String accessToken) {
-        try {
-            //call product service to get total bill
-            String url = inventoryServiceUrl + "/getTotalBill";
-
-            HttpHeaders headers = new HttpHeaders();
-            headers.set("Internal-API-Key",interServiceKey);
-            headers.setBearerAuth(accessToken);
-            headers.setContentType(MediaType.APPLICATION_JSON);
-
-            HttpEntity<List<ProductDTO>> entity = new HttpEntity<>(cartProducts, headers);
-
-            ResponseEntity<Double> response = restTemplate.exchange(
-                    url, HttpMethod.POST, entity, Double.class
-            );
-            return response.getBody() != null ? response.getBody() : 0.0;
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to fetch total bill: " + e.getMessage());
-        }
     }
 
     public ResponseEntity<String> clearCart(String accessToken)
