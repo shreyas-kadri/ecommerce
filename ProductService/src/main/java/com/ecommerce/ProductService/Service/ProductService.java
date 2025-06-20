@@ -41,8 +41,6 @@ public class ProductService {
 
     private final TokenUtil tokenUtil;
 
-    private final RestTemplate restTemplate;
-
     private final Cloudinary cloudinary;
 
     private final ProductInterServiceClient productInterServiceClient;
@@ -199,29 +197,9 @@ public class ProductService {
 
     }
 
-    @CircuitBreaker(name = "inventoryService", fallbackMethod = "fallbackGetAllProductsBySellerId")
     public List<Product> getAllProductsBySellerId(String sellerId, String accessToken)
     {
-        String url = inventoryServiceUrl + "/getProductIds/" + sellerId;
-        HttpHeaders headers = new HttpHeaders();
-        headers.set("Internal-API-Key",interServiceKey);
-        headers.setBearerAuth(accessToken);
-        HttpEntity<String> entity = new HttpEntity<>(headers);
-        ResponseEntity<List<String>> response = restTemplate.exchange(
-                url,
-                HttpMethod.GET,
-                entity,
-                new ParameterizedTypeReference<List<String>>() {}
-        );
-        List<String> productIds=response.getBody();
-        return productRepository.findProductsByProductIds(productIds);
-    }
-
-    private List<Product> fallbackGetAllProductsBySellerId(String sellerId, String accessToken, Throwable t)
-    {
-        logger.warn("Fallback for getAllProductsBySellerId due to: {}", t.getMessage());
-        List<Product> products=new ArrayList<>();
-        return products;
+        return productInterServiceClient.getAllProductsBySellerId(sellerId,accessToken);
     }
 
 }
