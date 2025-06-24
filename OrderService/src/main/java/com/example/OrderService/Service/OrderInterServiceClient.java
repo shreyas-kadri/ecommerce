@@ -94,20 +94,16 @@ public class OrderInterServiceClient {
     }
 
     @CircuitBreaker(name = "inventoryService", fallbackMethod = "fallbackGetUserDetails")
-    public CustomerDTO getUserDetails(String accessToken) {
-        try {
-            WebClient webClient = webClientBuilder.baseUrl(userServiceUrl).build();
+    public CustomerDTO getUserDetails(String accessToken)
+    {
+        WebClient webClient = webClientBuilder.baseUrl(userServiceUrl).build();
 
-            return webClient.get()
+        return webClient.get()
                     .uri("/getCustomerById")
                     .headers(headers -> headers.setBearerAuth(accessToken))
                     .retrieve()
                     .bodyToMono(CustomerDTO.class)
                     .block();
-        } catch (Exception e) {
-            logger.error("Failed to fetch user details from user service: {}", e.getMessage());
-            throw new RuntimeException("Failed to fetch user service");
-        }
     }
 
     public CustomerDTO fallbackGetUserDetails(String accessToken,Throwable t)

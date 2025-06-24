@@ -6,9 +6,10 @@ import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.*;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestTemplate;
+import org.springframework.web.reactive.function.client.WebClient;
+import reactor.core.publisher.Mono;
 
 import java.util.List;
 
@@ -16,7 +17,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class CartInterServiceClient {
 
-    private final RestTemplate restTemplate;
+    private final WebClient.Builder webClientBuilder;
 
     @Value("${inventory.service.url}")
     private String inventoryServiceUrl;
@@ -29,61 +30,62 @@ public class CartInterServiceClient {
     @CircuitBreaker(name = "inventoryService", fallbackMethod = "fallbackIsInStock")
     public boolean isInStock(ProductDTO productDTO, String accessToken)
     {
-        //call inventory service to verify whether product is in stock
-        String url = inventoryServiceUrl + "/isInStock?productId=" + productDTO.getProductId() + "&quantity=" + productDTO.getQuantity();
-        HttpHeaders headers = new HttpHeaders();
-        headers.set("Internal-API-Key",interServiceKey);
-        headers.setBearerAuth(accessToken);
-        HttpEntity<String> entity = new HttpEntity<>(headers);
-        ResponseEntity<Boolean> response = restTemplate.exchange(url, HttpMethod.GET, entity, Boolean.class);
-        return response.getBody() != null && response.getBody();
+        Boolean result = webClientBuilder.build()
+                    .get()
+                    .uri(inventoryServiceUrl + "/isInStock?productId={productId}&quantity={quantity}", productDTO.getProductId(), productDTO.getQuantity())
+                    .header("Internal-API-Key", interServiceKey)
+                    .header("Authorization", "Bearer " + accessToken)
+                    .retrieve()
+                    .bodyToMono(Boolean.class)
+                    .block();
+        return result != null && result;
     }
 
     @CircuitBreaker(name = "inventoryService", fallbackMethod = "fallbackDoesProductExist")
-    public boolean doesProductExists(String productId,String accessToken)
+    public boolean doesProductExists(String productId, String accessToken)
     {
-        //call inventory service to verify whether product exists
-        String url = inventoryServiceUrl + "/doesProductExist?productId=" + productId;
-        HttpHeaders headers = new HttpHeaders();
-        headers.set("Internal-API-Key",interServiceKey);
-        headers.setBearerAuth(accessToken);
-        HttpEntity<String> entity = new HttpEntity<>(headers);
-        ResponseEntity<Boolean> response = restTemplate.exchange(url, HttpMethod.GET, entity, Boolean.class);
-        return response.getBody() != null && response.getBody();
+        Boolean result = webClientBuilder.build()
+                    .get()
+                    .uri(inventoryServiceUrl + "/doesProductExist?productId={productId}", productId)
+                    .header("Internal-API-Key", interServiceKey)
+                    .header("Authorization", "Bearer " + accessToken)
+                    .retrieve()
+                    .bodyToMono(Boolean.class)
+                    .block();
+        return result != null && result;
     }
 
     @CircuitBreaker(name = "inventoryService", fallbackMethod = "fallbackGetTotalBill")
     public double getTotalBill(List<ProductDTO> cartProducts, String accessToken)
     {
-        //call product service to get total bill
-        String url = inventoryServiceUrl + "/getTotalBill";
-        HttpHeaders headers = new HttpHeaders();
-        headers.set("Internal-API-Key",interServiceKey);
-        headers.setBearerAuth(accessToken);
-        headers.setContentType(MediaType.APPLICATION_JSON);
-        HttpEntity<List<ProductDTO>> entity = new HttpEntity<>(cartProducts, headers);
-        ResponseEntity<Double> response = restTemplate.exchange(
-                    url, HttpMethod.POST, entity, Double.class);
-
-        return response.getBody() != null ? response.getBody() : 0.0;
+        Double totalBill = webClientBuilder.build()
+                    .post()
+                    .uri(inventoryServiceUrl + "/getTotalBill")
+                    .header("Internal-API-Key", interServiceKey)
+                    .header("Authorization", "Bearer " + accessToken)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .bodyValue(cartProducts)
+                    .retrieve()
+                    .bodyToMono(Double.class)
+                    .block();
+        return totalBill != null ? totalBill : 0.0;
     }
 
     public boolean fallbackIsInStock(ProductDTO productDTO, String accessToken, Throwable t)
     {
         logger.warn("Fallback triggered for isInStock due to: {}", t.toString());
-        return false; // decide if you want to fail open or closed
+        return false;
     }
 
     public boolean fallbackDoesProductExist(String productId, String accessToken, Throwable t)
     {
         logger.warn("Fallback triggered for doesProductExist due to: {}", t.toString());
-        return false; // decide if you want to fail open or closed
+        return false;
     }
 
     public double fallbackGetTotalBill(List<ProductDTO> cartProducts, String accessToken, Throwable t)
     {
         logger.warn("Fallback triggered for getTotalBill due to: {}", t.toString());
-        return -999.999; // decide if you want to fail open or closed
+        return -999.999;
     }
-
 }
