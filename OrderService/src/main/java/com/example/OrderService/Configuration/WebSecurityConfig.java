@@ -16,6 +16,7 @@ import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 import java.util.ArrayList;
@@ -84,7 +85,7 @@ public class WebSecurityConfig implements WebMvcConfigurer {
 
     @Bean
     @LoadBalanced
-    public RestTemplate restTemplate() {
-        return new RestTemplate();
+    public WebClient.Builder webClientBuilder() {
+        return WebClient.builder();
     }
 }
