@@ -28,10 +28,10 @@ public class InventoryService {
 
     private final TokenUtil tokenUtil;
 
+    private final InventoryInterServiceClient inventoryInterServiceClient;
+
     @Value("${product.service.url}")
     private String productServiceUrl;
-
-    private final RestTemplate restTemplate;
 
     @Value("${interservice.api.key}")
     private String interServiceKey;
@@ -156,29 +156,10 @@ public class InventoryService {
         inventoryRepository.deleteById(productId);
         // Delete product in Product Service
         try {
-            deleteProductInProductService(productId, accessToken);
+            inventoryInterServiceClient.deleteProductInProductService(productId, accessToken);
         } catch (Exception e) {
             logger.error("Failed to delete product in Product Service: {}", e.getMessage());
             throw new RuntimeException("Product deleted from Inventory but failed to delete in Product Service");
-        }
-    }
-
-    public void deleteProductInProductService(String productId,String accessToken)
-    {
-        //call product service to delete the product there as well
-        try {
-            String url = productServiceUrl + "/deleteProductByProductId?productId=" + productId;
-            HttpHeaders headers = new HttpHeaders();
-            headers.set("Internal-API-Key",interServiceKey);
-            headers.setBearerAuth(accessToken);
-            HttpEntity<Void> entity = new HttpEntity<>(headers);
-            ResponseEntity<Void> response = restTemplate.exchange(url, HttpMethod.DELETE, entity, Void.class);
-            logger.info("Product deleted in Product service Database");
-        }
-        catch(Exception e)
-        {
-            logger.error("Error deleting product in Product Service: {}", e.getMessage());
-            throw new RuntimeException("Failed to delete product in Product Service");
         }
     }
 

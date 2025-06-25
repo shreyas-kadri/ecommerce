@@ -9,7 +9,6 @@ import com.ecommerce.InventoryService.Utility.TokenUtil;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.*;
-import org.springframework.http.*;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.*;
@@ -29,12 +28,12 @@ class InventoryServiceTest {
     private TokenUtil tokenUtil;
 
     @Mock
-    private RestTemplate restTemplate;
+    private InventoryInterServiceClient inventoryInterServiceClient;
 
     @BeforeEach
     void setUp() {
         MockitoAnnotations.openMocks(this);
-        inventoryService = new InventoryService(inventoryRepository, tokenUtil, restTemplate);
+        inventoryService = new InventoryService(inventoryRepository, tokenUtil, inventoryInterServiceClient);
     }
 
     @Test
@@ -91,17 +90,12 @@ class InventoryServiceTest {
         doNothing().when(inventoryRepository).deleteById("p1");
 
         // Simulate external service call
-        ResponseEntity<Void> response = new ResponseEntity<>(HttpStatus.OK);
-        when(restTemplate.exchange(
-                anyString(),
-                eq(HttpMethod.DELETE),
-                any(HttpEntity.class),
-                eq(Void.class)
-        )).thenReturn(response);
+        doNothing().when(inventoryInterServiceClient).deleteProductInProductService("p1", "token");
 
         inventoryService.deleteProduct("p1", "token");
 
         verify(inventoryRepository).deleteById("p1");
+        verify(inventoryInterServiceClient).deleteProductInProductService("p1", "token");
     }
 
     @Test
