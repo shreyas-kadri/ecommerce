@@ -18,7 +18,7 @@ pipeline {
             steps {
                 echo 'Starting dependency containers (Postgres, Kafka, Mongo, Keycloak, etc.)...'
                 dir('Setup') {
-                    sh 'docker-compose up -d'
+                    sh 'docker compose up -d'
                 }
                 sh 'docker ps'
             }
@@ -216,8 +216,8 @@ pipeline {
 
         stage('Deploy Microservices') {
             steps {
-                echo 'Starting all microservices using docker-compose...'
-                sh 'docker-compose up -d'
+                echo 'Starting all microservices using docker compose...'
+                sh 'docker compose up -d'
                 sh 'docker ps'
             }
         }
@@ -233,7 +233,7 @@ pipeline {
     post {
         always {
             echo 'Pipeline completed. You can add cleanup steps here if necessary.'
-            // Example: sh 'docker-compose down'
+            // Example: sh 'docker compose down'
         }
     }
 }
