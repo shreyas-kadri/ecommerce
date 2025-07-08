@@ -1,10 +1,6 @@
 pipeline {
     agent any
 
-    tools {
-        maven 'Maven 3.8.7'
-    }
-
     environment {
         MAVEN_OPTS = '-Dmaven.test.failure.ignore=false'
     }
