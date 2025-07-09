@@ -13,69 +13,75 @@ pipeline {
             }
         }
 
-        stage('Build & Test Microservices') {
-            parallel {
-                stage('UserService') {
-                    steps {
-                        dir('UserService') {
-                            sh 'mvn clean compile'
-                            sh 'mvn test'
-                        }
-                    }
+        stage('Start Dependencies') {
+            steps {
+                echo 'Running docker-compose in Setup folder...'
+                dir('Setup') {
+                    sh 'docker-compose up -d'
                 }
+                sh 'docker ps'
+            }
+        }
 
-                stage('ProductService') {
-                    steps {
-                        dir('ProductService') {
-                            sh 'mvn clean compile'
-                            sh 'mvn test'
-                        }
-                    }
+        stage('Build & Test UserService') {
+            steps {
+                dir('UserService') {
+                    sh 'mvn clean compile'
+                    sh 'mvn test'
                 }
+            }
+        }
 
-                stage('CartService') {
-                    steps {
-                        dir('CartService') {
-                            sh 'mvn clean compile'
-                            sh 'mvn test'
-                        }
-                    }
+        stage('Build & Test ProductService') {
+            steps {
+                dir('ProductService') {
+                    sh 'mvn clean compile'
+                    sh 'mvn test'
                 }
+            }
+        }
 
-                stage('InventoryService') {
-                    steps {
-                        dir('InventoryService') {
-                            sh 'mvn clean compile'
-                            sh 'mvn test'
-                        }
-                    }
+        stage('Build & Test CartService') {
+            steps {
+                dir('CartService') {
+                    sh 'mvn clean compile'
+                    sh 'mvn test'
                 }
+            }
+        }
 
-                stage('NotificationService') {
-                    steps {
-                        dir('NotificationService') {
-                            sh 'mvn clean compile'
-                            sh 'mvn test'
-                        }
-                    }
+        stage('Build & Test InventoryService') {
+            steps {
+                dir('InventoryService') {
+                    sh 'mvn clean compile'
+                    sh 'mvn test'
                 }
+            }
+        }
 
-                stage('APIGateway') {
-                    steps {
-                        dir('APIGateway') {
-                            sh 'mvn clean compile'
-                            sh 'mvn test'
-                        }
-                    }
+        stage('Build & Test NotificationService') {
+            steps {
+                dir('NotificationService') {
+                    sh 'mvn clean compile'
+                    sh 'mvn test'
                 }
+            }
+        }
 
-                stage('EurekaServer') {
-                    steps {
-                        dir('EurekaServer') {
-                            sh 'mvn clean compile'
-                            sh 'mvn test'
-                        }
-                    }
+        stage('Build & Test APIGateway') {
+            steps {
+                dir('APIGateway') {
+                    sh 'mvn clean compile'
+                    sh 'mvn test'
+                }
+            }
+        }
+
+        stage('Build & Test EurekaServer') {
+            steps {
+                dir('EurekaServer') {
+                    sh 'mvn clean compile'
+                    sh 'mvn test'
                 }
             }
         }
@@ -83,13 +89,18 @@ pipeline {
 
     post {
         always {
-            echo 'Build & Test Pipeline Completed.'
+            echo 'Build & Test pipeline completed.'
+
+            // Optional: Stop and clean up dependency containers
+            dir('Setup') {
+                sh 'docker-compose down'
+            }
         }
         success {
-            echo 'All services built and tested successfully!'
+            echo 'All microservices built and tested successfully.'
         }
         failure {
-            echo 'One or more services failed to build/test.'
+            echo 'One or more services failed during build/test.'
         }
     }
 }
