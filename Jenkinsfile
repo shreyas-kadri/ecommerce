@@ -13,9 +13,9 @@ pipeline {
             }
         }
 
-        stage('Start Dependencies') {
+        stage('Start Setup Dependencies') {
             steps {
-                echo 'Running docker-compose in Setup folder...'
+                echo 'Running docker-compose in Setup folder to start dependencies...'
                 dir('Setup') {
                     sh 'docker-compose up -d'
                 }
@@ -23,84 +23,94 @@ pipeline {
             }
         }
 
-        stage('Build & Test UserService') {
-            steps {
-                dir('UserService') {
-                    sh 'mvn clean compile'
-                    sh 'mvn test'
+        stage('Build & Test Services') {
+            parallel {
+                stage('UserService') {
+                    steps {
+                        dir('UserService') {
+                            sh 'mvn clean compile'
+                            sh 'mvn test'
+                        }
+                    }
+                }
+
+                stage('ProductService') {
+                    steps {
+                        dir('ProductService') {
+                            sh 'mvn clean compile'
+                            sh 'mvn test'
+                        }
+                    }
+                }
+
+                stage('CartService') {
+                    steps {
+                        dir('CartService') {
+                            sh 'mvn clean compile'
+                            sh 'mvn test'
+                        }
+                    }
+                }
+
+                stage('InventoryService') {
+                    steps {
+                        dir('InventoryService') {
+                            sh 'mvn clean compile'
+                            sh 'mvn test'
+                        }
+                    }
+                }
+
+                stage('NotificationService') {
+                    steps {
+                        dir('NotificationService') {
+                            sh 'mvn clean compile'
+                            sh 'mvn test'
+                        }
+                    }
+                }
+
+                stage('APIGateway') {
+                    steps {
+                        dir('APIGateway') {
+                            sh 'mvn clean compile'
+                            sh 'mvn test'
+                        }
+                    }
+                }
+
+                stage('EurekaServer') {
+                    steps {
+                        dir('EurekaServer') {
+                            sh 'mvn clean compile'
+                            sh 'mvn test'
+                        }
+                    }
                 }
             }
         }
 
-        stage('Build & Test ProductService') {
+        stage('Start Final Application') {
             steps {
-                dir('ProductService') {
-                    sh 'mvn clean compile'
-                    sh 'mvn test'
-                }
-            }
-        }
-
-        stage('Build & Test CartService') {
-            steps {
-                dir('CartService') {
-                    sh 'mvn clean compile'
-                    sh 'mvn test'
-                }
-            }
-        }
-
-        stage('Build & Test InventoryService') {
-            steps {
-                dir('InventoryService') {
-                    sh 'mvn clean compile'
-                    sh 'mvn test'
-                }
-            }
-        }
-
-        stage('Build & Test NotificationService') {
-            steps {
-                dir('NotificationService') {
-                    sh 'mvn clean compile'
-                    sh 'mvn test'
-                }
-            }
-        }
-
-        stage('Build & Test APIGateway') {
-            steps {
-                dir('APIGateway') {
-                    sh 'mvn clean compile'
-                    sh 'mvn test'
-                }
-            }
-        }
-
-        stage('Build & Test EurekaServer') {
-            steps {
-                dir('EurekaServer') {
-                    sh 'mvn clean compile'
-                    sh 'mvn test'
-                }
+                echo 'Running docker-compose in project root to deploy all microservices...'
+                sh 'docker-compose down || true' // ignore failure if not running
+                sh 'docker-compose up -d'
+                sh 'docker ps'
             }
         }
     }
 
     post {
         always {
-            echo 'Build & Test pipeline completed.'
+            echo 'Build & Deploy pipeline completed.'
+        }
 
-            // Optional: Stop and clean up dependency containers
-            dir('Setup') {
-                sh 'docker-compose down'
-            }
-        }
         success {
-            echo 'All microservices built and tested successfully.'
+            echo 'All services built, tested, and deployed successfully.'
         }
+
         failure {
-            echo 'One or more services failed during build/test.'
+            echo 'One or more services failed during the pipeline.'
         }
     }
 }
