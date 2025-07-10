@@ -6,13 +6,6 @@ pipeline {
     }
 
     stages {
-        stage('Checkout') {
-            steps {
-                echo 'Cloning the repository...'
-                checkout scm
-            }
-        }
-
         stage('Start Setup Dependencies') {
             steps {
                 echo 'Running docker-compose in Setup folder to start dependencies...'
