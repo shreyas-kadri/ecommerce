@@ -10,7 +10,7 @@ pipeline {
             steps {
                 echo 'Running docker-compose in Setup folder to start dependencies...'
                 dir('Setup') {
-                    sh 'docker-compose up -d'
+                    sh 'docker compose up -d'
                 }
                 sh 'docker ps'
             }
@@ -86,8 +86,8 @@ pipeline {
         stage('Start Final Application') {
             steps {
                 echo 'Running docker-compose in project root to deploy all microservices...'
-                sh 'docker-compose down || true' // ignore failure if not running
-                sh 'docker-compose up -d'
+                sh 'docker compose down || true' // ignore failure if not running
+                sh 'docker compose up -d'
                 sh 'docker ps'
             }
         }
