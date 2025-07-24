@@ -10,9 +10,9 @@ pipeline {
             steps {
                 echo 'Running docker-compose in Setup folder to start dependencies...'
                 dir('Setup') {
-                    sh 'docker-compose up -d'
+                    bat 'docker-compose up -d'
                 }
-                sh 'docker ps'
+                bat 'docker ps'
             }
         }
 
@@ -21,8 +21,8 @@ pipeline {
                 stage('UserService') {
                     steps {
                         dir('UserService') {
-                            sh 'mvn clean compile'
-                            sh 'mvn test'
+                            bat 'mvn clean compile'
+                            bat 'mvn test'
                         }
                     }
                 }
@@ -30,8 +30,8 @@ pipeline {
                 stage('ProductService') {
                     steps {
                         dir('ProductService') {
-                            sh 'mvn clean compile'
-                            sh 'mvn test'
+                            bat 'mvn clean compile'
+                            bat 'mvn test'
                         }
                     }
                 }
@@ -39,8 +39,8 @@ pipeline {
                 stage('CartService') {
                     steps {
                         dir('CartService') {
-                            sh 'mvn clean compile'
-                            sh 'mvn test'
+                            bat 'mvn clean compile'
+                            bat 'mvn test'
                         }
                     }
                 }
@@ -48,8 +48,8 @@ pipeline {
                 stage('InventoryService') {
                     steps {
                         dir('InventoryService') {
-                            sh 'mvn clean compile'
-                            sh 'mvn test'
+                            bat 'mvn clean compile'
+                            bat 'mvn test'
                         }
                     }
                 }
@@ -57,8 +57,8 @@ pipeline {
                 stage('NotificationService') {
                     steps {
                         dir('NotificationService') {
-                            sh 'mvn clean compile'
-                            sh 'mvn test'
+                            bat 'mvn clean compile'
+                            bat 'mvn test'
                         }
                     }
                 }
@@ -66,8 +66,8 @@ pipeline {
                 stage('APIGateway') {
                     steps {
                         dir('APIGateway') {
-                            sh 'mvn clean compile'
-                            sh 'mvn test'
+                            bat 'mvn clean compile'
+                            bat 'mvn test'
                         }
                     }
                 }
@@ -75,8 +75,8 @@ pipeline {
                 stage('EurekaServer') {
                     steps {
                         dir('EurekaServer') {
-                            sh 'mvn clean compile'
-                            sh 'mvn test'
+                            bat 'mvn clean compile'
+                            bat 'mvn test'
                         }
                     }
                 }
@@ -86,9 +86,10 @@ pipeline {
         stage('Start Final Application') {
             steps {
                 echo 'Running docker-compose in project root to deploy all microservices...'
-                sh 'docker-compose down || true' // ignore failure if not running
-                sh 'docker-compose up -d'
-                sh 'docker ps'
+                // '|| true' not needed in Windows batch — use conditional handling if needed
+                bat 'docker-compose down'
+                bat 'docker-compose up -d'
+                bat 'docker ps'
             }
         }
     }
