@@ -1,7 +1,7 @@
 pipeline {
     agent any
 
-    tools{
+    tools {
         jdk 'jdk-17'
     }
 
@@ -21,7 +21,7 @@ pipeline {
         }
 
         stage('Build & Test Services') {
-            parallel {
+            stages {
                 stage('UserService') {
                     steps {
                         dir('UserService') {
@@ -90,8 +90,6 @@ pipeline {
         stage('Start Final Application') {
             steps {
                 echo 'Running docker-compose in project root to deploy all microservices...'
-                // '|| true' not needed in Windows batch — use conditional handling if needed
-                bat 'docker-compose down'
                 bat 'docker-compose up -d'
                 bat 'docker ps'
             }
