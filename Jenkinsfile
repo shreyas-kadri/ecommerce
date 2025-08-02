@@ -6,15 +6,7 @@ pipeline {
     }
 
     environment {
-        POSTGRES_USER = 'postgres'
-        POSTGRES_PASSWORD = 'postgres'
-        SPRING_DATASOURCE_USERNAME = 'postgres'
-        SPRING_DATASOURCE_PASSWORD = 'postgres'
-        EUREKA_URL = 'http://localhost:8761/eureka'
-        KEYCLOAK_URL = 'http://localhost:8080'
-        REDIS_HOST = 'localhost'
-        REDIS_PORT = '6379'
-        KAFKA_BROKER = 'localhost:29092'
+        MAVEN_OPTS = '-Dmaven.test.failure.ignore=false'
     }
 
     stages {
@@ -24,8 +16,6 @@ pipeline {
                 dir('Setup') {
                     bat 'docker-compose up -d'
                 }
-                echo 'Waiting for PostgreSQL to be ready...'
-                bat 'ping -n 10 127.0.0.1 > nul' // crude wait on Windows
                 bat 'docker ps'
             }
         }
@@ -35,13 +25,65 @@ pipeline {
                 stage('UserService') {
                     steps {
                         dir('UserService') {
-                            bat 'mvn clean compile -Dspring.profiles.active=default'
-                            bat 'mvn test -Dspring.profiles.active=default'
+                            bat 'mvn clean compile'
+                            bat 'mvn test'
                         }
                     }
                 }
 
-                // ... same for other services
+                stage('ProductService') {
+                    steps {
+                        dir('ProductService') {
+                            bat 'mvn clean compile'
+                            bat 'mvn test'
+                        }
+                    }
+                }
+
+                stage('CartService') {
+                    steps {
+                        dir('CartService') {
+                            bat 'mvn clean compile'
+                            bat 'mvn test'
+                        }
+                    }
+                }
+
+                stage('InventoryService') {
+                    steps {
+                        dir('InventoryService') {
+                            bat 'mvn clean compile'
+                            bat 'mvn test'
+                        }
+                    }
+                }
+
+                stage('NotificationService') {
+                    steps {
+                        dir('NotificationService') {
+                            bat 'mvn clean compile'
+                            bat 'mvn test'
+                        }
+                    }
+                }
+
+                stage('APIGateway') {
+                    steps {
+                        dir('APIGateway') {
+                            bat 'mvn clean compile'
+                            bat 'mvn test'
+                        }
+                    }
+                }
+
+                stage('EurekaServer') {
+                    steps {
+                        dir('EurekaServer') {
+                            bat 'mvn clean compile'
+                            bat 'mvn test'
+                        }
+                    }
+                }
             }
         }
 
