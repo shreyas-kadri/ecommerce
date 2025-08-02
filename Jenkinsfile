@@ -25,8 +25,10 @@ pipeline {
                 stage('UserService') {
                     steps {
                         dir('UserService') {
-                            bat 'mvn clean compile'
+                            bat 'mvn clean'
+                            bat 'mvn compile'
                             bat 'mvn test'
+                            bat 'mvn package -DskipTests'
                         }
                     }
                 }
@@ -34,8 +36,10 @@ pipeline {
                 stage('ProductService') {
                     steps {
                         dir('ProductService') {
-                            bat 'mvn clean compile'
+                            bat 'mvn clean'
+                            bat 'mvn compile'
                             bat 'mvn test'
+                            bat 'mvn package -DskipTests'
                         }
                     }
                 }
@@ -43,8 +47,10 @@ pipeline {
                 stage('CartService') {
                     steps {
                         dir('CartService') {
-                            bat 'mvn clean compile'
+                            bat 'mvn clean'
+                            bat 'mvn compile'
                             bat 'mvn test'
+                            bat 'mvn package -DskipTests'
                         }
                     }
                 }
@@ -52,8 +58,10 @@ pipeline {
                 stage('InventoryService') {
                     steps {
                         dir('InventoryService') {
-                            bat 'mvn clean compile'
+                            bat 'mvn clean'
+                            bat 'mvn compile'
                             bat 'mvn test'
+                            bat 'mvn package -DskipTests'
                         }
                     }
                 }
@@ -61,8 +69,21 @@ pipeline {
                 stage('NotificationService') {
                     steps {
                         dir('NotificationService') {
-                            bat 'mvn clean compile'
+                            bat 'mvn clean'
+                            bat 'mvn compile'
                             bat 'mvn test'
+                            bat 'mvn package -DskipTests'
+                        }
+                    }
+                }
+
+                stage('OrderService') {
+                    steps {
+                        dir('OrderService') {
+                            bat 'mvn clean'
+                            bat 'mvn compile'
+                            bat 'mvn test'
+                            bat 'mvn package -DskipTests'
                         }
                     }
                 }
@@ -70,8 +91,10 @@ pipeline {
                 stage('APIGateway') {
                     steps {
                         dir('APIGateway') {
-                            bat 'mvn clean compile'
+                            bat 'mvn clean'
+                            bat 'mvn compile'
                             bat 'mvn test'
+                            bat 'mvn package -DskipTests'
                         }
                     }
                 }
@@ -79,8 +102,10 @@ pipeline {
                 stage('EurekaServer') {
                     steps {
                         dir('EurekaServer') {
-                            bat 'mvn clean compile'
+                            bat 'mvn clean'
+                            bat 'mvn compile'
                             bat 'mvn test'
+                            bat 'mvn package -DskipTests'
                         }
                     }
                 }
