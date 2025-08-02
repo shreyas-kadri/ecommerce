@@ -26,6 +26,7 @@ pipeline {
                     steps {
                         dir('UserService') {
                             bat 'mvn clean compile'
+                            bat 'mvn package'
                             bat 'mvn test'
                         }
                     }
@@ -35,6 +36,7 @@ pipeline {
                     steps {
                         dir('ProductService') {
                             bat 'mvn clean compile'
+                            bat 'mvn package'
                             bat 'mvn test'
                         }
                     }
@@ -44,6 +46,7 @@ pipeline {
                     steps {
                         dir('CartService') {
                             bat 'mvn clean compile'
+                            bat 'mvn package'
                             bat 'mvn test'
                         }
                     }
@@ -53,6 +56,7 @@ pipeline {
                     steps {
                         dir('InventoryService') {
                             bat 'mvn clean compile'
+                            bat 'mvn package'
                             bat 'mvn test'
                         }
                     }
@@ -62,6 +66,7 @@ pipeline {
                     steps {
                         dir('NotificationService') {
                             bat 'mvn clean compile'
+                            bat 'mvn package'
                             bat 'mvn test'
                         }
                     }
@@ -71,6 +76,7 @@ pipeline {
                     steps {
                         dir('APIGateway') {
                             bat 'mvn clean compile'
+                            bat 'mvn package'
                             bat 'mvn test'
                         }
                     }
@@ -80,6 +86,7 @@ pipeline {
                     steps {
                         dir('EurekaServer') {
                             bat 'mvn clean compile'
+                            bat 'mvn package'
                             bat 'mvn test'
                         }
                     }
